@@ -1,0 +1,28 @@
+# Binaries
+/bin/
+/dist/
+/out/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go build cache
+*.test
+*.out
+
+# Coverage
+coverage.out
+coverage.txt
+
+# IDEs/editors
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Swag/Docs generated
+docs/
