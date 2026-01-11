@@ -23,6 +23,3 @@ coverage.txt
 # OS
 .DS_Store
 Thumbs.db
-
-# Swag/Docs generated
-docs/

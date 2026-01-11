@@ -7,7 +7,17 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/warley004/packing-optimizer-api/internal/api/http"
+
+	_ "github.com/warley004/packing-optimizer-api/docs"
+
 )
+
+
+// @title           Packing Optimizer API
+// @version         1.0
+// @description     API para otimizar o empacotamento de produtos em caixas disponíveis (minimizando o número de caixas).
+// @BasePath        /
+// @schemes         http
 
 func main() {
 	// Gin mode: debug (default) or release

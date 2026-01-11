@@ -1,0 +1,14 @@
+{
+    "schemes": [
+        "http"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "API para otimizar o empacotamento de produtos em caixas disponíveis (minimizando o número de caixas).",
+        "title": "Packing Optimizer API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/",
+    "paths": {}
+}

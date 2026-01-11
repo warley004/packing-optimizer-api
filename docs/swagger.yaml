@@ -1,0 +1,11 @@
+basePath: /
+info:
+  contact: {}
+  description: API para otimizar o empacotamento de produtos em caixas disponíveis
+    (minimizando o número de caixas).
+  title: Packing Optimizer API
+  version: "1.0"
+paths: {}
+schemes:
+- http
+swagger: "2.0"
