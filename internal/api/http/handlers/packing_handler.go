@@ -6,12 +6,17 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/warley004/packing-optimizer-api/internal/api/dto"
+	"github.com/warley004/packing-optimizer-api/internal/service"
 )
 
-type PackingHandler struct{}
+type PackingHandler struct {
+	service *service.PackingService
+}
 
 func NewPackingHandler() *PackingHandler {
-	return &PackingHandler{}
+	return &PackingHandler{
+		service: service.NewPackingService(),
+	}
 }
 
 func (h *PackingHandler) Pack(c *gin.Context) {
@@ -26,24 +31,25 @@ func (h *PackingHandler) Pack(c *gin.Context) {
 		return
 	}
 
-	// Placeholder determinístico (até implementarmos o algoritmo):
-	// coloca todos os produtos do pedido na "Caixa 3".
-	resp := dto.PackingResponse{Pedidos: make([]dto.PedidoResponse, 0, len(req.Pedidos))}
-	for _, p := range req.Pedidos {
-		prodIDs := make([]string, 0, len(p.Produtos))
-		for _, pr := range p.Produtos {
-			prodIDs = append(prodIDs, pr.ProdutoID)
+	resp, err := h.service.Pack(req)
+	if err != nil {
+		if se, ok := err.(*service.ServiceError); ok {
+			c.JSON(se.StatusCode, gin.H{
+				"error": gin.H{
+					"code":    "PACKING_ERROR",
+					"message": se.Message,
+				},
+			})
+			return
 		}
 
-		resp.Pedidos = append(resp.Pedidos, dto.PedidoResponse{
-			PedidoID: p.PedidoID,
-			Caixas: []dto.CaixaResponse{
-				{
-					CaixaID:  "Caixa 3",
-					Produtos: prodIDs,
-				},
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": gin.H{
+				"code":    "INTERNAL_ERROR",
+				"message": "erro interno inesperado",
 			},
 		})
+		return
 	}
 
 	c.JSON(http.StatusOK, resp)
