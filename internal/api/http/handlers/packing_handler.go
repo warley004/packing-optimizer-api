@@ -9,19 +9,6 @@ import (
 	"github.com/warley004/packing-optimizer-api/internal/service"
 )
 
-// Pack godoc
-// @Summary      Empacota produtos de pedidos em caixas disponíveis
-// @Description  Processa N pedidos, otimiza o empacotamento (minimizando o número de caixas) e informa quais produtos vão em cada caixa.
-// @Tags         packing
-// @Accept       json
-// @Produce      json
-// @Param        request  body      dto.PackingRequest  true  "Lista de pedidos com produtos e dimensões"
-// @Success      200      {object}  dto.PackingResponse
-// @Failure      400      {object}  map[string]any "Erro de validação do JSON/estrutura"
-// @Failure      422      {object}  map[string]any "Erro de empacotamento (produto não cabe)"
-// @Failure      500      {object}  map[string]any "Erro interno"
-// @Router       /v1/packing [post]
-
 type PackingHandler struct {
 	service *service.PackingService
 }
@@ -32,6 +19,18 @@ func NewPackingHandler() *PackingHandler {
 	}
 }
 
+// Pack godoc
+// @Summary      Empacotar pedidos
+// @Description  Processa uma lista de pedidos e retorna a alocação de produtos em caixas disponíveis (minimizando o número de caixas).
+// @Tags         packing
+// @Accept       json
+// @Produce      json
+// @Param        request  body      dto.PackingRequest  true  "Lista de pedidos com produtos e dimensões"
+// @Success      200      {object}  dto.PackingResponse
+// @Failure      400      {object}  map[string]any  "Erro de validação do JSON/estrutura"
+// @Failure      422      {object}  map[string]any  "Erro de empacotamento (produto não cabe)"
+// @Failure      500      {object}  map[string]any  "Erro interno"
+// @Router       /v1/packing [post]
 func (h *PackingHandler) Pack(c *gin.Context) {
 	var req dto.PackingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

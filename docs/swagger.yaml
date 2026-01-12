@@ -1,11 +1,122 @@
 basePath: /
+definitions:
+  dto.CaixaResponse:
+    properties:
+      caixa_id:
+        type: string
+      produtos:
+        items:
+          type: string
+        type: array
+    type: object
+  dto.DimensoesDTO:
+    properties:
+      altura:
+        type: integer
+      comprimento:
+        type: integer
+      largura:
+        type: integer
+    required:
+    - altura
+    - comprimento
+    - largura
+    type: object
+  dto.PackingRequest:
+    properties:
+      pedidos:
+        items:
+          $ref: '#/definitions/dto.PedidoRequest'
+        minItems: 1
+        type: array
+    required:
+    - pedidos
+    type: object
+  dto.PackingResponse:
+    properties:
+      pedidos:
+        items:
+          $ref: '#/definitions/dto.PedidoResponse'
+        type: array
+    type: object
+  dto.PedidoRequest:
+    properties:
+      pedido_id:
+        type: integer
+      produtos:
+        items:
+          $ref: '#/definitions/dto.ProdutoRequest'
+        minItems: 1
+        type: array
+    required:
+    - pedido_id
+    - produtos
+    type: object
+  dto.PedidoResponse:
+    properties:
+      caixas:
+        items:
+          $ref: '#/definitions/dto.CaixaResponse'
+        type: array
+      pedido_id:
+        type: integer
+    type: object
+  dto.ProdutoRequest:
+    properties:
+      dimensoes:
+        $ref: '#/definitions/dto.DimensoesDTO'
+      produto_id:
+        minLength: 1
+        type: string
+    required:
+    - dimensoes
+    - produto_id
+    type: object
 info:
   contact: {}
   description: API para otimizar o empacotamento de produtos em caixas disponíveis
     (minimizando o número de caixas).
   title: Packing Optimizer API
   version: "1.0"
-paths: {}
+paths:
+  /v1/packing:
+    post:
+      consumes:
+      - application/json
+      description: Processa uma lista de pedidos e retorna a alocação de produtos
+        em caixas disponíveis (minimizando o número de caixas).
+      parameters:
+      - description: Lista de pedidos com produtos e dimensões
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.PackingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PackingResponse'
+        "400":
+          description: Erro de validação do JSON/estrutura
+          schema:
+            additionalProperties: true
+            type: object
+        "422":
+          description: Erro de empacotamento (produto não cabe)
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Empacotar pedidos
+      tags:
+      - packing
 schemes:
 - http
 swagger: "2.0"

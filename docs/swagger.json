@@ -10,5 +10,171 @@
         "version": "1.0"
     },
     "basePath": "/",
-    "paths": {}
+    "paths": {
+        "/v1/packing": {
+            "post": {
+                "description": "Processa uma lista de pedidos e retorna a alocação de produtos em caixas disponíveis (minimizando o número de caixas).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "packing"
+                ],
+                "summary": "Empacotar pedidos",
+                "parameters": [
+                    {
+                        "description": "Lista de pedidos com produtos e dimensões",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.PackingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PackingResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Erro de validação do JSON/estrutura",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "422": {
+                        "description": "Erro de empacotamento (produto não cabe)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "dto.CaixaResponse": {
+            "type": "object",
+            "properties": {
+                "caixa_id": {
+                    "type": "string"
+                },
+                "produtos": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "dto.DimensoesDTO": {
+            "type": "object",
+            "required": [
+                "altura",
+                "comprimento",
+                "largura"
+            ],
+            "properties": {
+                "altura": {
+                    "type": "integer"
+                },
+                "comprimento": {
+                    "type": "integer"
+                },
+                "largura": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.PackingRequest": {
+            "type": "object",
+            "required": [
+                "pedidos"
+            ],
+            "properties": {
+                "pedidos": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/dto.PedidoRequest"
+                    }
+                }
+            }
+        },
+        "dto.PackingResponse": {
+            "type": "object",
+            "properties": {
+                "pedidos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.PedidoResponse"
+                    }
+                }
+            }
+        },
+        "dto.PedidoRequest": {
+            "type": "object",
+            "required": [
+                "pedido_id",
+                "produtos"
+            ],
+            "properties": {
+                "pedido_id": {
+                    "type": "integer"
+                },
+                "produtos": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/dto.ProdutoRequest"
+                    }
+                }
+            }
+        },
+        "dto.PedidoResponse": {
+            "type": "object",
+            "properties": {
+                "caixas": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.CaixaResponse"
+                    }
+                },
+                "pedido_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.ProdutoRequest": {
+            "type": "object",
+            "required": [
+                "dimensoes",
+                "produto_id"
+            ],
+            "properties": {
+                "dimensoes": {
+                    "$ref": "#/definitions/dto.DimensoesDTO"
+                },
+                "produto_id": {
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        }
+    }
 }
