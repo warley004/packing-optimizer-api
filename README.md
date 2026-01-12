@@ -42,6 +42,8 @@ Request
         }
       ]
     }
+  ]
+}
     Health: GET http://localhost:8080/healthz
 
     Swagger: GET http://localhost:8080/swagger/index.html
@@ -116,7 +118,7 @@ Request
 
     ## Testes
     ```bash
-    go test ./...
+    go test ./internal/packing
     ```
 
     ## Notas

@@ -43,22 +43,36 @@ func (d Dimensions) FitsIn(space Dimensions) bool {
 	return d.Height <= space.Height && d.Width <= space.Width && d.Length <= space.Length
 }
 
+// rotationsFor returns either all rotations (allowRotation=true) or only the original orientation.
+func rotationsFor(d Dimensions, allowRotation bool) []Dimensions {
+	if allowRotation {
+		return d.Rotations()
+	}
+	return []Dimensions{d}
+}
+
 type Item struct {
 	ProductID string
 	Dim       Dimensions
 	Volume    int
+	Index     int // posição do produto no pedido (ordem original do input)
+}
+
+type packedProduct struct {
+	ID    string
+	Index int
 }
 
 type PackedBox struct {
-	BoxType   BoxType
-	Products  []string
+	BoxType    BoxType
+	Products   []packedProduct
 	freeSpaces []Dimensions
 }
 
 func newPackedBox(bt BoxType) PackedBox {
 	return PackedBox{
 		BoxType:    bt,
-		Products:   []string{},
+		Products:   []packedProduct{},
 		freeSpaces: []Dimensions{{Height: bt.Height, Width: bt.Width, Length: bt.Length}},
 	}
 }
@@ -68,31 +82,29 @@ func (b *PackedBox) boxVolume() int {
 }
 
 type placement struct {
-	boxIndex     int
-	spaceIndex   int
-	rot          Dimensions
-	wasteVolume  int
-	boxVolume    int
+	spaceIndex  int
+	rot         Dimensions
+	wasteVolume int
 }
 
 // TryPlace tries to place an item into this box using free-space splitting.
 // Returns true if placed.
-func (b *PackedBox) TryPlace(item Item) bool {
+func (b *PackedBox) TryPlace(item Item, allowRotation bool) bool {
 	best := placement{wasteVolume: int(^uint(0) >> 1)} // max int
 	found := false
 
 	for si, space := range b.freeSpaces {
-		for _, rot := range item.Dim.Rotations() {
+		for _, rot := range rotationsFor(item.Dim, allowRotation) {
 			if !rot.FitsIn(space) {
 				continue
 			}
+
 			waste := space.Volume() - rot.Volume()
 			if waste < best.wasteVolume {
 				best = placement{
 					spaceIndex:  si,
 					rot:         rot,
 					wasteVolume: waste,
-					boxVolume:   b.boxVolume(),
 				}
 				found = true
 			}
@@ -137,12 +149,12 @@ func (b *PackedBox) TryPlace(item Item) bool {
 		})
 	}
 
-	// Optional: keep spaces sorted by volume descending to try larger spaces first.
+	// Keep spaces sorted by volume descending to try larger spaces first.
 	sort.Slice(b.freeSpaces, func(i, j int) bool {
 		return b.freeSpaces[i].Volume() > b.freeSpaces[j].Volume()
 	})
 
-	b.Products = append(b.Products, item.ProductID)
+	b.Products = append(b.Products, packedProduct{ID: item.ProductID, Index: item.Index})
 	return true
 }
 
@@ -151,8 +163,8 @@ type OrderPackingResult struct {
 }
 
 // PackOrder packs items into available boxes minimizing number of boxes (heuristic).
-// Returns an error if an item can't fit in any available box (even with rotation).
-func PackOrder(items []Item, boxTypes []BoxType) (OrderPackingResult, error) {
+// Returns an error if an item can't fit in any available box.
+func PackOrder(items []Item, boxTypes []BoxType, allowRotation bool) (OrderPackingResult, error) {
 	if len(items) == 0 {
 		return OrderPackingResult{Boxes: []PackedBox{}}, nil
 	}
@@ -185,7 +197,7 @@ func PackOrder(items []Item, boxTypes []BoxType) (OrderPackingResult, error) {
 
 		// Try existing boxes first
 		for bi := range opened {
-			if opened[bi].TryPlace(it) {
+			if opened[bi].TryPlace(it, allowRotation) {
 				placed = true
 				break
 			}
@@ -195,29 +207,47 @@ func PackOrder(items []Item, boxTypes []BoxType) (OrderPackingResult, error) {
 			continue
 		}
 
-		// Open a new box: smallest box that can fit this item in some rotation
-		var chosen *BoxType
+		// Open a new box: prefer one that fits without rotation; fallback to rotation when needed.
+		noRotationIdx := -1
+		rotationIdx := -1
+
 		for i := range boxTypes {
 			bt := boxTypes[i]
 			space := Dimensions{Height: bt.Height, Width: bt.Width, Length: bt.Length}
-			canFit := false
-			for _, rot := range it.Dim.Rotations() {
-				if rot.FitsIn(space) {
-					canFit = true
-					break
-				}
-			}
-			if canFit {
-				chosen = &bt
+
+			if it.Dim.FitsIn(space) {
+				noRotationIdx = i
 				break
 			}
-		}
-		if chosen == nil {
-			return OrderPackingResult{}, fmt.Errorf("produto '%s' não cabe em nenhuma caixa disponível (mesmo com rotação)", it.ProductID)
+
+			if allowRotation && rotationIdx == -1 {
+				for _, rot := range it.Dim.Rotations() {
+					if rot.FitsIn(space) {
+						rotationIdx = i
+						break
+					}
+				}
+			}
 		}
 
-		nb := newPackedBox(*chosen)
-		if !nb.TryPlace(it) {
+		chosenIdx := -1
+		if noRotationIdx != -1 {
+			chosenIdx = noRotationIdx
+		} else if rotationIdx != -1 {
+			chosenIdx = rotationIdx
+		}
+
+		if chosenIdx == -1 {
+			if allowRotation {
+				return OrderPackingResult{}, fmt.Errorf("produto '%s' não cabe em nenhuma caixa disponível (mesmo com rotação)", it.ProductID)
+			}
+			return OrderPackingResult{}, fmt.Errorf("produto '%s' não cabe em nenhuma caixa disponível", it.ProductID)
+		}
+
+		chosen := boxTypes[chosenIdx]
+
+		nb := newPackedBox(chosen)
+		if !nb.TryPlace(it, allowRotation) {
 			// This should not happen given the fit check, but keep safe.
 			return OrderPackingResult{}, fmt.Errorf("falha inesperada ao alocar produto '%s' na caixa '%s'", it.ProductID, chosen.ID)
 		}
