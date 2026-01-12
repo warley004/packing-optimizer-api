@@ -14,23 +14,23 @@ Inclui **rotação 3D (6 orientações)** e heurística determinística baseada 
 ### Local (Go)
 ```bash
 go run ./cmd/api
+```
 
 A API sobe em:
+- Health: GET http://localhost:8080/healthz
+- Swagger: GET http://localhost:8080/swagger/index.html
+- Packing: POST http://localhost:8080/v1/packing
 
-Health: GET http://localhost:8080/healthz
-
-Swagger: GET http://localhost:8080/swagger/index.html
-
-Packing: POST http://localhost:8080/v1/packing
-
-Docker (recomendado)
+### Docker (recomendado)
+```bash
 docker compose up --build
+```
 
-Endpoint principal
-POST /v1/packing
+## Endpoint principal
+`POST http://localhost:8080/v1/packing`
 
-Request
-
+### Request (exemplo)
+```json
 {
   "pedidos": [
     {
@@ -39,88 +39,58 @@ Request
         {
           "produto_id": "PS5",
           "dimensoes": { "altura": 40, "largura": 10, "comprimento": 25 }
+        },
+        {
+          "produto_id": "Volante",
+          "dimensoes": { "altura": 40, "largura": 30, "comprimento": 30 }
         }
       ]
     }
   ]
 }
-    Health: GET http://localhost:8080/healthz
+```
 
-    Swagger: GET http://localhost:8080/swagger/index.html
-
-    Packing: POST http://localhost:8080/v1/packing
-
-    ### Docker (recomendado)
-    ```bash
-    docker compose up --build
-    ```
-
-    ### Endpoint principal
-    POST /v1/packing
-
-    ### Request
-    ```json
+### Response (exemplo)
+```json
+{
+  "pedidos": [
     {
-      "pedidos": [
-        {
-          "pedido_id": 1,
-          "produtos": [
-            {
-              "produto_id": "PS5",
-              "dimensoes": { "altura": 40, "largura": 10, "comprimento": 25 }
-            }
-          ]
-        }
+      "pedido_id": 1,
+      "caixas": [
+        { "caixa_id": "Caixa 2", "produtos": ["PS5", "Volante"] }
       ]
     }
-    ```
+  ]
+}
+```
 
-    ### Response (exemplo)
-    ```json
-    {
-      "pedidos": [
-        {
-          "pedido_id": 1,
-          "caixas": [
-            { "caixa_id": "Caixa 1", "produtos": ["PS5"] }
-          ]
-        }
-      ]
-    }
-    ```
+## Decisões de projeto
 
-    ## Decisões de projeto
+### Rotação 3D
 
-    ### Rotação 3D
+O enunciado não restringe orientação dos produtos, então o algoritmo permite rotação 3D, testando até 6 permutações únicas de (altura, largura, comprimento).
+Ao abrir uma nova caixa, a menor caixa possível é escolhida primeiro sem rotação; se não couber, rotacionar passa a ser considerado para aproveitar melhor o volume disponível.
 
-    O enunciado não restringe orientação dos produtos, então o algoritmo permite rotação 3D, testando até 6 permutações únicas de (altura, largura, comprimento).
-    Isso aumenta o aproveitamento e pode reduzir o número total de caixas.
+### Heurística de empacotamento
 
-    ### Heurística de empacotamento
+O problema se aproxima de 3D bin packing (NP-difícil). Para manter desempenho e previsibilidade, foi adotada uma heurística:
 
-    O problema se aproxima de 3D bin packing (NP-difícil). Para manter desempenho e previsibilidade, foi adotada uma heurística:
+- ordena produtos por volume decrescente (First Fit Decreasing);
+- tenta encaixar em caixas já abertas, avaliando todas as rotações permitidas;
+- mantém uma lista de espaços livres (free-spaces) por caixa e aplica um split determinístico ao inserir itens;
+- se não couber, abre a menor caixa disponível que comporte o produto considerando rotação quando necessário.
 
-    ordena produtos por volume decrescente (First Fit Decreasing);
+### Erros personalizados
 
-    tenta encaixar em caixas já abertas, avaliando todas as rotações;
+- 400 para erros de validação de JSON/estrutura;
+- 422 quando um produto não cabe em nenhuma caixa (mesmo com rotação), com mensagem contextualizada por pedido;
+- 500 para falhas inesperadas.
 
-    mantém uma lista de espaços livres (free-spaces) por caixa e aplica um split determinístico ao inserir itens;
+## Testes
+```bash
+go test ./internal/packing
+```
 
-    se não couber, abre a menor caixa disponível que comporte o produto.
+## Notas
 
-    ### Erros personalizados
-
-    400 para erros de validação de JSON/estrutura;
-
-    422 quando um produto não cabe em nenhuma caixa (mesmo com rotação), com mensagem contextualizada por pedido;
-
-    500 para falhas inesperadas.
-
-    ## Testes
-    ```bash
-    go test ./internal/packing
-    ```
-
-    ## Notas
-
-    Peso, fragilidade, empilhamento e outras restrições não foram consideradas por não estarem especificadas.
+Peso, fragilidade, empilhamento e outras restrições não foram consideradas por não estarem especificadas.
