@@ -15,7 +15,7 @@ func (d Dimensions) Volume() int {
 	return d.Height * d.Width * d.Length
 }
 
-// Rotations returns all unique 3D rotations of the dimensions.
+// Rotations retorna todas as rotações 3D únicas das dimensões.
 func (d Dimensions) Rotations() []Dimensions {
 	perms := []Dimensions{
 		{d.Height, d.Width, d.Length},
@@ -43,7 +43,8 @@ func (d Dimensions) FitsIn(space Dimensions) bool {
 	return d.Height <= space.Height && d.Width <= space.Width && d.Length <= space.Length
 }
 
-// rotationsFor returns either all rotations (allowRotation=true) or only the original orientation.
+// rotationsFor devolve todas as rotações quando allowRotation=true ou apenas a orientação original.
+// allowRotation define se mantemos orientação rígida (false) ou testamos todas as permutações 3D (true).
 func rotationsFor(d Dimensions, allowRotation bool) []Dimensions {
 	if allowRotation {
 		return d.Rotations()
@@ -87,8 +88,8 @@ type placement struct {
 	wasteVolume int
 }
 
-// TryPlace tries to place an item into this box using free-space splitting.
-// Returns true if placed.
+// TryPlace tenta colocar o item aplicando free-space splitting.
+// Retorna true se o item couber.
 func (b *PackedBox) TryPlace(item Item, allowRotation bool) bool {
 	best := placement{wasteVolume: int(^uint(0) >> 1)} // max int
 	found := false
@@ -115,16 +116,16 @@ func (b *PackedBox) TryPlace(item Item, allowRotation bool) bool {
 		return false
 	}
 
-	// Place into chosen space and split it deterministically.
+	// Aloca no espaço escolhido e faz o split determinístico.
 	space := b.freeSpaces[best.spaceIndex]
 	rot := best.rot
 
 	// Remove used space
 	b.freeSpaces = append(b.freeSpaces[:best.spaceIndex], b.freeSpaces[best.spaceIndex+1:]...)
 
-	// Split strategy (guillotine-like, simple and deterministic):
-	// Place item at origin of the space; generate up to 3 residual spaces.
-	// 1) Right slice (remaining width)
+	// Estratégia de split (tipo guilhotina, simples e determinística) mantém layout previsível para encaixes futuros.
+	// Coloca o item na origem do espaço; gera até 3 sobras.
+	// 1) Slice lateral (largura restante)
 	if space.Width-rot.Width > 0 {
 		b.freeSpaces = append(b.freeSpaces, Dimensions{
 			Height: space.Height,
@@ -132,7 +133,7 @@ func (b *PackedBox) TryPlace(item Item, allowRotation bool) bool {
 			Length: space.Length,
 		})
 	}
-	// 2) Front slice (remaining length) within the item's width region
+	// 2) Slice frontal (comprimento restante) dentro da largura do item
 	if space.Length-rot.Length > 0 {
 		b.freeSpaces = append(b.freeSpaces, Dimensions{
 			Height: space.Height,
@@ -140,7 +141,7 @@ func (b *PackedBox) TryPlace(item Item, allowRotation bool) bool {
 			Length: space.Length - rot.Length,
 		})
 	}
-	// 3) Top slice (remaining height) within the item's footprint
+	// 3) Slice superior (altura restante) dentro da base do item
 	if space.Height-rot.Height > 0 {
 		b.freeSpaces = append(b.freeSpaces, Dimensions{
 			Height: space.Height - rot.Height,
@@ -149,7 +150,7 @@ func (b *PackedBox) TryPlace(item Item, allowRotation bool) bool {
 		})
 	}
 
-	// Keep spaces sorted by volume descending to try larger spaces first.
+	// Mantém os espaços ordenados por volume decrescente para tentar áreas maiores primeiro.
 	sort.Slice(b.freeSpaces, func(i, j int) bool {
 		return b.freeSpaces[i].Volume() > b.freeSpaces[j].Volume()
 	})
@@ -162,14 +163,16 @@ type OrderPackingResult struct {
 	Boxes []PackedBox
 }
 
-// PackOrder packs items into available boxes minimizing number of boxes (heuristic).
-// Returns an error if an item can't fit in any available box.
+// PackOrder empacota itens com uma heurística determinística para o problema NP-difícil de bin packing 3D; busca minimizar caixas abertas, mas não garante ótimo global.
+// Retorna erro se algum item não couber em nenhuma caixa disponível.
 func PackOrder(items []Item, boxTypes []BoxType, allowRotation bool) (OrderPackingResult, error) {
 	if len(items) == 0 {
 		return OrderPackingResult{Boxes: []PackedBox{}}, nil
 	}
 
-	// Sort items by volume desc (FFD)
+	// Problema NP-difícil tratado via heurística determinística para reduzir caixas abertas.
+
+	// Ordena itens por volume decrescente (FFD) para que maiores ocupem primeiro, reduzindo fragmentação.
 	for i := range items {
 		items[i].Volume = items[i].Dim.Volume()
 	}
@@ -180,7 +183,7 @@ func PackOrder(items []Item, boxTypes []BoxType, allowRotation bool) (OrderPacki
 		return items[i].Volume > items[j].Volume
 	})
 
-	// Sort box types by volume asc (pick smallest that fits when opening new one)
+	// Ordena caixas por volume crescente para testar primeiro o menor recipiente viável.
 	sort.Slice(boxTypes, func(i, j int) bool {
 		vi := boxTypes[i].Height * boxTypes[i].Width * boxTypes[i].Length
 		vj := boxTypes[j].Height * boxTypes[j].Width * boxTypes[j].Length
@@ -207,7 +210,7 @@ func PackOrder(items []Item, boxTypes []BoxType, allowRotation bool) (OrderPacki
 			continue
 		}
 
-		// Open a new box: prefer one that fits without rotation; fallback to rotation when needed.
+		// Abrir nova caixa: prefere encaixar sem rotação; recorre à rotação se necessário e permitido.
 		noRotationIdx := -1
 		rotationIdx := -1
 
@@ -248,7 +251,7 @@ func PackOrder(items []Item, boxTypes []BoxType, allowRotation bool) (OrderPacki
 
 		nb := newPackedBox(chosen)
 		if !nb.TryPlace(it, allowRotation) {
-			// This should not happen given the fit check, but keep safe.
+			// Não deve acontecer após a checagem de ajuste, mas mantemos validação defensiva.
 			return OrderPackingResult{}, fmt.Errorf("falha inesperada ao alocar produto '%s' na caixa '%s'", it.ProductID, chosen.ID)
 		}
 		opened = append(opened, nb)

@@ -13,6 +13,7 @@ type PackingService struct {
 	boxes []packing.BoxType
 }
 
+// Service consolida regras de domínio de empacotamento; handlers apenas transformam HTTP <-> DTO e delegam aqui.
 func NewPackingService() *PackingService {
 	return &PackingService{
 		boxes: packing.AvailableBoxes(),
@@ -47,9 +48,10 @@ func (s *PackingService) Pack(req dto.PackingRequest) (dto.PackingResponse, erro
 			})
 		}
 
-		// Allow 3D rotation to maximize box usage per pedido
+		// Permite rotação 3D para o algoritmo aproveitar melhor cada caixa.
 		result, err := packing.PackOrder(items, s.boxes, true)
 		if err != nil {
+			// Handler converte ServiceError em resposta HTTP (status e payload).
 			return dto.PackingResponse{}, &ServiceError{
 				StatusCode: http.StatusUnprocessableEntity,
 				Message:    "Pedido " + formatID(pedido.PedidoID) + ": " + err.Error(),
@@ -62,7 +64,7 @@ func (s *PackingService) Pack(req dto.PackingRequest) (dto.PackingResponse, erro
 		}
 
 		for _, b := range result.Boxes {
-			// Ordena produtos dentro da caixa pela ordem original do request
+			// Ordena produtos para manter a ordem recebida no payload original.
 			sort.Slice(b.Products, func(i, j int) bool {
 				return b.Products[i].Index < b.Products[j].Index
 			})

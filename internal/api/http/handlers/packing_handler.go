@@ -14,6 +14,7 @@ type PackingHandler struct {
 }
 
 func NewPackingHandler() *PackingHandler {
+	// Handler orquestra entrada HTTP e delega regra de negócio para o service.
 	return &PackingHandler{
 		service: service.NewPackingService(),
 	}
@@ -32,6 +33,7 @@ func NewPackingHandler() *PackingHandler {
 // @Failure      500      {object}  map[string]any  "Erro interno"
 // @Router       /v1/packing [post]
 func (h *PackingHandler) Pack(c *gin.Context) {
+	// Validação sintática/JSON ocorre no handler para responder 400 sem invocar o domínio.
 	var req dto.PackingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -46,6 +48,7 @@ func (h *PackingHandler) Pack(c *gin.Context) {
 	resp, err := h.service.Pack(req)
 	if err != nil {
 		if se, ok := err.(*service.ServiceError); ok {
+			// ServiceError já traz o status apropriado definido pelas regras de negócio.
 			c.JSON(se.StatusCode, gin.H{
 				"error": gin.H{
 					"code":    "PACKING_ERROR",
@@ -55,6 +58,7 @@ func (h *PackingHandler) Pack(c *gin.Context) {
 			return
 		}
 
+		// Fallback 500 para falhas inesperadas não mapeadas pelo service.
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": gin.H{
 				"code":    "INTERNAL_ERROR",
@@ -64,5 +68,6 @@ func (h *PackingHandler) Pack(c *gin.Context) {
 		return
 	}
 
+	// Service já garante preservação da ordem dos produtos; handler apenas serializa o DTO final.
 	c.JSON(http.StatusOK, resp)
 }
